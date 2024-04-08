@@ -612,9 +612,11 @@ class DAG:
         self.nodes: Dict[uuid.UUID, Node] = {}
         self.nodes_by_name: Dict[str, Node] = {}
 
-        self.namespace = namespace or client.default_charged_namespace(
-            required_action=rest_api.NamespaceActions.RUN_JOB
-        )
+        if mode != Mode.LOCAL:
+            self.namespace = namespace or client.default_charged_namespace(
+                required_action=rest_api.NamespaceActions.RUN_JOB
+            )
+
         self.name = name
         self.server_graph_uuid: Optional[uuid.UUID] = None
         self.max_workers = max_workers
@@ -912,6 +914,11 @@ class DAG:
         :param name: name
         :return: Node that is created
         """
+        if self.mode == Mode.LOCAL:
+            raise tce.TileDBCloudError(
+                "Local mode DAGs do not support adding remote functions or sql"
+            )
+    
         return self._add_prewrapped_node(
             array.apply_base,
             func,
@@ -948,6 +955,11 @@ class DAG:
                 return self.submit_local(func, *args, **kwargs)
 
             del kwargs["local_mode"]
+
+        if self.mode == Mode.LOCAL:
+            raise tce.TileDBCloudError(
+                "Local mode DAGs do not support adding remote functions or sql"
+            )
 
         return self._add_prewrapped_node(
             udf.exec_base,
@@ -994,6 +1006,12 @@ class DAG:
         :param name: name
         :return: Node that is created
         """
+
+        if self.mode == Mode.LOCAL:
+            raise tce.TileDBCloudError(
+                "Local mode DAGs do not support adding remote functions or sql"
+            )
+
         return self._add_prewrapped_node(
             _sql_exec.exec_base,
             *args,
